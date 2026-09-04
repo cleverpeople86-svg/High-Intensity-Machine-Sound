@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 env:
-  HF_SPACE: your-hf-account/your-space-name
+  HF_SPACE: CleverPeople/HighIntensityMachine
 
 jobs:
   verify:
