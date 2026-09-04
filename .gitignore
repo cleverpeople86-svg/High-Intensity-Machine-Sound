@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.env
+*.pt
+*.onnx
+*.bin
+*.safetensors
+.pytest_cache/
+.DS_Store
