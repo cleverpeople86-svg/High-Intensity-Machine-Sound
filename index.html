@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Machine Sound Monitor</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; }
+    body { max-width: 920px; margin: 0 auto; padding: 2rem 1rem; color: #182230; background: #f4f7fb; }
+    main { background: white; padding: 1.5rem; border: 1px solid #d8e0ea; border-radius: 12px; }
+    h1 { margin-top: 0; }
+    .controls { display: grid; gap: 1rem; grid-template-columns: 1fr auto; align-items: end; }
+    label { display: grid; gap: .4rem; font-weight: 600; }
+    input[type="range"] { width: 100%; }
+    button { border: 0; border-radius: 7px; padding: .7rem 1rem; cursor: pointer; font-weight: 700; }
+    #analyze { color: white; background: #155eef; }
+    #clear { background: #e8edf3; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    #result { min-height: 8rem; margin: 1.5rem 0; padding: 1rem; background: #f4f7fb; border-radius: 8px; }
+    .alert { color: #b42318; } .normal { color: #067647; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: .9rem; }
+    th, td { text-align: left; padding: .5rem; border-bottom: 1px solid #e4e9ef; }
+    .actions { display: flex; gap: .6rem; margin-top: 1rem; }
+    small { color: #526173; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Machine Sound Monitor</h1>
+    <p>Record a short microphone sample and screen it for unusually loud or high-frequency machine sound.</p>
+    <div class="controls">
+      <label for="threshold">Alert threshold: <output id="threshold-value">70</output>
+        <input id="threshold" type="range" min="20" max="95" value="70">
+      </label>
+      <button id="analyze" type="button">Analyze sample</button>
+    </div>
+    <p><small>Audio is processed locally in your browser and is not uploaded.</small></p>
+    <div id="result" aria-live="polite"><h2>Waiting for microphone input</h2><p>Record a short sample to begin analysis.</p></div>
+    <div class="actions">
+      <button id="clear" type="button">Clear session</button>
+      <button id="export" type="button" disabled>Download CSV</button>
+    </div>
+    <p id="event-count">Events: 0</p>
+    <table><thead><tr><th>Time</th><th>Score</th><th>Severity</th><th>Dominant Hz</th><th>RMS dBFS</th><th>Centroid Hz</th></tr></thead><tbody id="events"></tbody></table>
+    <p><small>This is a lightweight DSP heuristic, not a calibrated safety instrument. Microphone placement, room noise, and device hardware affect the result.</small></p>
+  </main>
+  <script>
+    const state = { events: [] };
+    const threshold = document.querySelector('#threshold');
+    const thresholdValue = document.querySelector('#threshold-value');
+    const result = document.querySelector('#result');
+    const analyzeButton = document.querySelector('#analyze');
+    const eventBody = document.querySelector('#events');
+    const exportButton = document.querySelector('#export');
+    threshold.addEventListener('input', () => { thresholdValue.value = threshold.value; });
+
+    function rmsDb(signal) {
+      let sum = 0;
+      for (const value of signal) sum += value * value;
+      return 20 * Math.log10(Math.max(Math.sqrt(sum / signal.length), 1e-6));
+    }
+
+    function fftFeatures(signal, sampleRate) {
+      const size = 2 ** Math.floor(Math.log2(Math.min(signal.length, 4096)));
+      const magnitudes = [];
+      let total = 0;
+      let dominantIndex = 0;
+      for (let index = 1; index < size / 2; index += 1) {
+        let real = 0; let imaginary = 0;
+        for (let sample = 0; sample < size; sample += 1) {
+          const window = 0.5 * (1 - Math.cos(2 * Math.PI * sample / (size - 1)));
+          const angle = 2 * Math.PI * index * sample / size;
+          real += signal[sample] * window * Math.cos(angle);
+          imaginary -= signal[sample] * window * Math.sin(angle);
+        }
+        const magnitude = Math.hypot(real, imaginary);
+        magnitudes[index] = magnitude;
+        total += magnitude;
+        if (magnitude > (magnitudes[dominantIndex] || 0)) dominantIndex = index;
+      }
+      let weighted = 0; let high = 0;
+      for (let index = 1; index < size / 2; index += 1) {
+        const frequency = index * sampleRate / size;
+        weighted += frequency * magnitudes[index];
+        if (frequency >= 2000) high += magnitudes[index];
+      }
+      return { dominant: dominantIndex * sampleRate / size, centroid: weighted / Math.max(total, 1e-9), highRatio: high / Math.max(total, 1e-9) };
+    }
+
+    function renderEvents() {
+      eventBody.innerHTML = state.events.map(event => `<tr><td>${event.timestamp}</td><td>${event.score}</td><td>${event.severity}</td><td>${event.dominant_frequency_hz}</td><td>${event.rms_db}</td><td>${event.spectral_centroid_hz}</td></tr>`).join('');
+      document.querySelector('#event-count').textContent = `Events: ${state.events.length}`;
+      exportButton.disabled = state.events.length === 0;
+    }
+
+    async function analyze() {
+      analyzeButton.disabled = true;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const context = new AudioContext();
+        const source = context.createMediaStreamSource(stream);
+        const processor = context.createScriptProcessor(4096, 1, 1);
+        const samples = [];
+        processor.onaudioprocess = event => samples.push(...event.inputBuffer.getChannelData(0));
+        source.connect(processor); processor.connect(context.destination);
+        result.innerHTML = '<h2>Recording...</h2><p>Speak or run the machine for a few seconds, then press Analyze again to stop.</p>';
+        analyzeButton.textContent = 'Stop and analyze';
+        await new Promise(resolve => { analyzeButton.onclick = resolve; });
+        source.disconnect(); processor.disconnect(); stream.getTracks().forEach(track => track.stop()); await context.close();
+        if (!samples.length) throw new Error('The recording contained no samples.');
+        const features = fftFeatures(samples, context.sampleRate || 44100);
+        const rms = rmsDb(samples);
+        const score = Math.max(0, Math.min(100, Math.round(Math.max(0, Math.min(55, (rms + 55) / 35 * 55)) + Math.max(0, Math.min(45, features.highRatio * 45)))));
+        const severity = score >= Number(threshold.value) ? 'ALERT' : 'NORMAL';
+        state.events.push({ timestamp: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'), score, severity, dominant_frequency_hz: Number(features.dominant.toFixed(1)), rms_db: Number(rms.toFixed(1)), spectral_centroid_hz: Number(features.centroid.toFixed(1)) });
+        result.innerHTML = `<h2 class="${severity.toLowerCase()}">${severity}</h2><p><strong>Risk score: ${score}/100</strong> (alert threshold: ${threshold.value})</p><p>Dominant frequency: <strong>${features.dominant.toFixed(1)} Hz</strong><br>Loudness: <strong>${rms.toFixed(1)} dBFS</strong><br>Spectral centroid: <strong>${features.centroid.toFixed(1)} Hz</strong></p>`;
+        renderEvents();
+      } catch (error) { result.innerHTML = `<h2>Input error</h2><p>${error.message}</p>`; }
+      analyzeButton.textContent = 'Analyze sample'; analyzeButton.onclick = analyze; analyzeButton.disabled = false;
+    }
+    analyzeButton.onclick = analyze;
+    document.querySelector('#clear').onclick = () => { state.events.length = 0; renderEvents(); result.innerHTML = '<h2>Waiting for microphone input</h2><p>Record a short sample to begin analysis.</p>'; };
+    exportButton.onclick = () => { const keys = ['timestamp', 'score', 'severity', 'dominant_frequency_hz', 'rms_db', 'spectral_centroid_hz']; const csv = [keys.join(','), ...state.events.map(event => keys.map(key => event[key]).join(','))].join('\n'); const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); link.download = 'machine-sound-events.csv'; link.click(); URL.revokeObjectURL(link.href); };
+  </script>
+</body>
+</html>
