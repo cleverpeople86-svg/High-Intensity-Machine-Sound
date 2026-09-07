@@ -28,7 +28,7 @@ jobs:
       - name: Import application
         run: python -c "import app; print('import ok')"
       - name: Run tests
-        run: pytest -q
+        run: python -m pytest -q
 
   deploy:
     needs: verify
