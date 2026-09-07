@@ -8,7 +8,7 @@ import gradio as gr
 import numpy as np
 
 
-APP_TITLE = "Machine Sound Monitor"
+APP_TITLE = "High Intensity Machine Sound Monitor"
 DEFAULT_THRESHOLD = 70
 EVENT_FIELDS = ["timestamp", "score", "severity", "dominant_frequency_hz", "rms_db", "spectral_centroid_hz"]
 
