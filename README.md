@@ -1,4 +1,4 @@
-----
+---
 title: Machine Sound Monitor
 emoji: "🔊"
 colorFrom: blue
@@ -6,8 +6,7 @@ colorTo: yellow
 sdk: gradio
 app_file: app.py
 pinned: false
-----
-
+---
 # Machine Sound Monitor
 
 Machine Sound Monitor captures a short sample from a user's microphone, extracts FFT-based audio features in Python, and reports a transparent 0-100 screening score for unusually loud or high-frequency sound. The interface shows the score, confidence inputs, alert threshold, session event log, and CSV export.
@@ -15,7 +14,6 @@ Machine Sound Monitor captures a short sample from a user's microphone, extracts
 **Live Space:** https://huggingface.co/spaces/CleverPeople/HighIntensityMachine
 
 ## Run locally
-
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
