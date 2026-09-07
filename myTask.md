@@ -9,7 +9,7 @@
   <https://huggingface.co/spaces/YianXingJian/HighIntensityMachine>
   (a browser app that captures **microphone sound**, extracts frequency features, visualizes them, and raises spike alerts — study its `README.md`, `.github/workflows/deploy-huggingface.yml`, and `app.html`)
 
----
+----
 
 ## 1. What you will build
 
