@@ -46,4 +46,4 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git push --force "https://user:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}" HEAD:main
+          git push --force "https://CleverPeople:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}" HEAD:main
