@@ -116,9 +116,14 @@ with gr.Blocks(title=APP_TITLE, theme=gr.themes.Soft()) as demo:
     events_state = gr.State([])
     with gr.Row():
         with gr.Column(scale=1):
-            microphone = gr.Audio(sources=["microphone"], type="numpy", label="Microphone sample")
+            microphone = gr.Audio(
+                sources=["microphone"],
+                type="numpy",
+                streaming=True,
+                label="Live microphone stream",
+            )
             threshold = gr.Slider(20, 95, value=DEFAULT_THRESHOLD, step=1, label="Alert threshold")
-            analyze = gr.Button("Analyze sample", variant="primary")
+            analyze = gr.Button("Analyze current sample", variant="primary")
         with gr.Column(scale=1):
             result = gr.Markdown("### Waiting for microphone input\nRecord a short sample to begin analysis.")
             event_count = gr.Markdown("Events: 0")
@@ -133,6 +138,12 @@ with gr.Blocks(title=APP_TITLE, theme=gr.themes.Soft()) as demo:
         "No recordings are stored by this app."
     )
 
+    microphone.stream(
+        analyze_audio,
+        [microphone, threshold, events_state],
+        [result, event_log, export, event_count, events_state],
+        stream_every=0.5,
+    )
     analyze.click(analyze_audio, [microphone, threshold, events_state], [result, event_log, export, event_count, events_state])
     clear.click(clear_events, outputs=[events_state, event_log, export, event_count])
 
