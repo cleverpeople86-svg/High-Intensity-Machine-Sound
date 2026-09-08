@@ -25,7 +25,7 @@ Open the local URL shown by Gradio and allow microphone access. The deployed Spa
 
 ## Data and method
 
-The app processes microphone samples in memory. It uses browser JavaScript in the Space and NumPy in the Python version to calculate RMS loudness, dominant frequency, spectral centroid, and the ratio of energy above 2 kHz. The root page opens the [automatic live stream](live.html), which requests microphone access on page load, refreshes its rolling score and spectrum continuously, adds a report row every 15 seconds, and exports the session log as CSV. These features produce a heuristic risk score; this is not a certified acoustic exposure measurement or a trained classifier. Recordings are not persisted or uploaded by the application.
+The app processes microphone samples in memory. It uses browser JavaScript in the Space and NumPy in the Python version to calculate RMS loudness, dominant frequency, spectral centroid, and the ratio of energy above 2 kHz. The root page contains the automatic live stream, which requests microphone access on page load, refreshes its rolling score and spectrum continuously, adds a report row every 15 seconds, and exports the session log as CSV. These features produce a heuristic risk score; this is not a certified acoustic exposure measurement or a trained classifier. Recordings are not persisted or uploaded by the application.
 
 ## CI/CD and deployment
 
